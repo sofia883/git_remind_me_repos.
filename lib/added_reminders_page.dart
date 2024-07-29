@@ -9,19 +9,7 @@ class AddedRemindersPage extends StatefulWidget {
 }
 
 class _AddedRemindersPageState extends State<AddedRemindersPage> {
-  final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _dateController = TextEditingController();
-  final _timeController = TextEditingController();
-
-  DateTime? _selectedDate;
-  TimeOfDay? _selectedTime;
   List<Map<String, String>> reminders = [];
-  bool _isLoading = true;
-  bool isPastDateTime(DateTime dateTime) {
-    return dateTime.isBefore(DateTime.now());
-  }
 
   @override
   void initState() {
@@ -30,9 +18,6 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
   }
 
   Future<void> _loadReminders() async {
-    // Simulate a loading delay
-    await Future.delayed(Duration(seconds: 1));
-
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> remindersData = prefs.getStringList('reminders') ?? [];
 
@@ -40,75 +25,17 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
       reminders = remindersData
           .map((reminder) => Map<String, String>.from(jsonDecode(reminder)))
           .toList();
-      _isLoading = false; // Update loading state
     });
   }
 
   Future<void> _saveReminders() async {
-    if (_formKey.currentState!.validate()) {
-      if (_dateController.text.isEmpty || _timeController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please select date and time')),
-        );
-        return;
-      }
-
-      final selectedDate = _selectedDate;
-      final selectedTime = _selectedTime;
-
-      if (selectedDate == null || selectedTime == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please select a valid date and time')),
-        );
-        return;
-      }
-
-      final dateTime = DateTime(
-        selectedDate.year,
-        selectedDate.month,
-        selectedDate.day,
-        selectedTime.hour,
-        selectedTime.minute,
-      );
-
-      if (isPastDateTime(dateTime)) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('The date and time cannot be in the past.')),
-        );
-        return;
-      }
-
-      // Retrieve existing reminders from shared preferences
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      List<String> reminders = prefs.getStringList('reminders') ?? [];
-
-      // Create a new reminder map
-      Map<String, String> newReminder = {
-        'title': _titleController.text,
-        'description': _descriptionController.text,
-        'date': _dateController.text,
-        'time': _timeController.text,
-      };
-
-      // Add the new reminder to the list
-      reminders.add(jsonEncode(newReminder));
-
-      // Save the updated list back to shared preferences
-      await prefs.setStringList('reminders', reminders);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reminder saved successfully!')),
-      );
-
-      // Delay navigation to the home page by 1 second
-      Future.delayed(Duration(seconds: 1), () {
-        Navigator.pop(context); // Navigate back to the home page
-      });
-    }
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> remindersData =
+        reminders.map((reminder) => jsonEncode(reminder)).toList();
+    await prefs.setStringList('reminders', remindersData);
   }
 
   void _deleteReminder(int index) async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       reminders.removeAt(index);
       _saveReminders();
@@ -175,9 +102,42 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
               child: Text('Cancel'),
             ),
             TextButton(
-             onPressed: _saveReminders,
-                child: Text('Save Reminder'),
-               
+              onPressed: () {
+                // Validate date and time before saving
+                DateTime? selectedDateTime = _parseDateTime(
+                  dateController.text,
+                  timeController.text,
+                );
+
+                if (selectedDateTime == null ||
+                    selectedDateTime.isBefore(DateTime.now())) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Date and time should not be in the past.'),
+                    ),
+                  );
+                  return;
+                }
+
+                Navigator.of(context).pop();
+                setState(() {
+                  reminders[index] = {
+                    'title': titleController.text,
+                    'description': descriptionController.text,
+                    'date': dateController.text,
+                    'time': timeController.text,
+                  };
+                  _saveReminders();
+                });
+
+                // Show success SnackBar after saving
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Reminder edited successfully!'),
+                  ),
+                );
+              },
+              child: Text('Save'),
             ),
           ],
         );
@@ -185,19 +145,34 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
     );
   }
 
-  DateTime _parseDateTime(String date, String time) {
+  DateTime? _parseDateTime(String date, String time) {
     try {
+      // Parse the date
       DateTime parsedDate = DateFormat('d MMMM yyyy').parse(date);
+
+      // Parse the time
       List<String> timeParts = time.split(':');
+      int hour = int.parse(timeParts[0]);
+      int minute = int.parse(timeParts[1].split(' ')[0]);
+
+      // Adjust hour for AM/PM
+      if (time.toLowerCase().contains('pm') && hour != 12) {
+        hour += 12;
+      } else if (time.toLowerCase().contains('am') && hour == 12) {
+        hour = 0;
+      }
+
+      // Combine date and time
       return DateTime(
         parsedDate.year,
         parsedDate.month,
         parsedDate.day,
-        int.parse(timeParts[0]),
-        int.parse(timeParts[1]),
+        hour,
+        minute,
       );
     } catch (e) {
-      return DateTime.now();
+      print('Error parsing date or time: $e');
+      return null;
     }
   }
 
@@ -240,122 +215,112 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
       appBar: AppBar(
         title: Text('Added Reminders'),
       ),
-      body: _isLoading
+      body: reminders.isEmpty
           ? Center(
-              child: SizedBox(
-                width: 50.0,
-                height: 50.0,
-                child: CircularProgressIndicator(),
+              child: Text(
+                'No reminders added yet.',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
               ),
             )
-          : reminders.isEmpty
-              ? Center(
-                  child: Text(
-                    'No reminders added yet.',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  itemCount: reminders.length,
-                  itemBuilder: (context, index) {
-                    final reminder = reminders[index];
-                    final dateTimeText =
-                        reminder['date'] != null && reminder['time'] != null
-                            ? '${reminder['date']} at ${reminder['time']}'
-                            : '';
+          : ListView.builder(
+              padding: const EdgeInsets.all(8.0),
+              itemCount: reminders.length,
+              itemBuilder: (context, index) {
+                final reminder = reminders[index];
+                final dateTimeText =
+                    reminder['date'] != null && reminder['time'] != null
+                        ? '${reminder['date']} at ${reminder['time']}'
+                        : '';
 
-                    return Card(
-                      elevation: 20,
-                      shadowColor: Colors.black,
-                      margin:
-                          EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20.0),
-                        side: BorderSide(color: Colors.grey, width: 2.0),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
+                return Card(
+                  elevation: 20,
+                  shadowColor: Colors.black,
+                  margin: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20.0),
+                    side: BorderSide(color: Colors.grey, width: 2.0),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          reminder['title'] ?? '',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8.0),
+                        Text(
+                          reminder['description'] ?? '',
+                          style: TextStyle(fontSize: 16),
+                        ),
+                        SizedBox(height: 8.0),
+                        Text(
+                          'Scheduled time:',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4.0),
+                        Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              reminder['title'] ?? '',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    reminder['date'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  Text(
+                                    reminder['time'] ?? '',
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.orange,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            SizedBox(height: 8.0),
-                            Text(
-                              reminder['description'] ?? '',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                            SizedBox(height: 8.0),
-                            Text(
-                              'Scheduled time:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4.0),
                             Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        reminder['date'] ?? '',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      Text(
-                                        reminder['time'] ?? '',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: Colors.orange,
-                                        ),
-                                      ),
-                                    ],
+                                IconButton(
+                                  icon: Icon(Icons.edit, color: Colors.blue),
+                                  onPressed: () => _editReminder(index),
+                                ),
+                                Container(
+                                  height:
+                                      24.0, // Adjust the height to fit the icons properly
+                                  child: VerticalDivider(
+                                    color: Colors.grey,
+                                    thickness: 1,
+                                    width: 20,
                                   ),
                                 ),
-                                Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    IconButton(
-                                      icon:
-                                          Icon(Icons.edit, color: Colors.blue),
-                                      onPressed: () => _editReminder(index),
-                                    ),
-                                    Container(
-                                      height: 24.0,
-                                      child: VerticalDivider(
-                                        color: Colors.grey,
-                                        thickness: 1,
-                                        width: 20,
-                                      ),
-                                    ),
-                                    IconButton(
-                                      icon: Icon(Icons.delete,
-                                          color: Colors.orange),
-                                      onPressed: () => _deleteReminder(index),
-                                    ),
-                                  ],
+                                IconButton(
+                                  icon:
+                                      Icon(Icons.delete, color: Colors.orange),
+                                  onPressed: () => _deleteReminder(index),
                                 ),
                               ],
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
-                ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }
