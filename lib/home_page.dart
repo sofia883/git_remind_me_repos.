@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
-import 'create_reminder.dart'; // Make sure to import the CreateReminderPage
+import 'create_reminder.dart';
 
 class HomePage extends StatefulWidget {
   @override
@@ -11,12 +11,15 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   List<Map<String, String>> reminders = [];
+  List<Map<String, String>> filteredReminders = [];
   bool _isLoading = true;
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _loadReminders();
+    _searchController.addListener(_filterReminders);
   }
 
   Future<void> _loadReminders() async {
@@ -43,6 +46,7 @@ class _HomePageState extends State<HomePage> {
         return reminderDateTime.isAfter(now);
       }).toList();
 
+      filteredReminders = List.from(reminders);
       _isLoading = false;
     });
   }
@@ -63,11 +67,50 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
+  void _filterReminders() {
+    setState(() {
+      if (_searchController.text.isEmpty) {
+        filteredReminders = List.from(reminders);
+      } else {
+        filteredReminders = reminders.where((reminder) {
+          return (reminder['title'] ?? '')
+                  .toLowerCase()
+                  .contains(_searchController.text.toLowerCase()) ||
+              (reminder['description'] ?? '')
+                  .toLowerCase()
+                  .contains(_searchController.text.toLowerCase());
+        }).toList();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Home Page'),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(50.0),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                hintText: 'Search reminders...',
+                border: InputBorder.none,
+                prefixIcon: Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.white,
+              ),
+            ),
+          ),
+        ),
       ),
       body: _isLoading
           ? Center(
@@ -77,7 +120,7 @@ class _HomePageState extends State<HomePage> {
                 child: CircularProgressIndicator(),
               ),
             )
-          : reminders.isEmpty
+          : filteredReminders.isEmpty
               ? Center(
                   child: Text(
                     'No upcoming reminders.',
@@ -86,9 +129,11 @@ class _HomePageState extends State<HomePage> {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(8.0),
-                  itemCount: reminders.length > 3 ? 3 : reminders.length,
+                  itemCount: filteredReminders.length > 3
+                      ? 3
+                      : filteredReminders.length,
                   itemBuilder: (context, index) {
-                    final reminder = reminders[index];
+                    final reminder = filteredReminders[index];
                     final dateTimeText =
                         reminder['date'] != null && reminder['time'] != null
                             ? '${reminder['date']} at ${reminder['time']}'
