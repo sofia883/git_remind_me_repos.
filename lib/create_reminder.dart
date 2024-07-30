@@ -4,6 +4,10 @@ import 'dart:convert';
 import 'package:intl/intl.dart';
 
 class CreateReminderPage extends StatefulWidget {
+  final VoidCallback onReminderSaved; // Callback when a reminder is saved
+
+  CreateReminderPage({required this.onReminderSaved});
+
   @override
   _CreateReminderPageState createState() => _CreateReminderPageState();
 }
@@ -116,10 +120,8 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
         SnackBar(content: Text('Reminder saved successfully!')),
       );
 
-      // Delay navigation to the home page by 1 second
-      Future.delayed(Duration(seconds: 1), () {
-        Navigator.pop(context); // Navigate back to the home page
-      });
+      widget.onReminderSaved(); // Call the callback to notify the previous page
+      Navigator.pop(context); // Navigate back to the previous page
     }
   }
 
