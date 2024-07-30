@@ -129,8 +129,8 @@ class _HomePageState extends State<HomePage> {
                 )
               : ListView.builder(
                   padding: const EdgeInsets.all(8.0),
-                  itemCount: filteredReminders.length > 3
-                      ? 3
+                  itemCount: filteredReminders.length > 5
+                      ? 5
                       : filteredReminders.length,
                   itemBuilder: (context, index) {
                     final reminder = filteredReminders[index];
@@ -191,7 +191,10 @@ class _HomePageState extends State<HomePage> {
         onPressed: () {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => CreateReminderPage()),
+            MaterialPageRoute(
+                builder: (context) => CreateReminderPage(
+                      onReminderSaved: _loadReminders,
+                    )),
           );
         },
         child: Icon(Icons.add),
