@@ -93,10 +93,10 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        flexibleSpace: Image.asset(
-          'assets/images/yellow.jpg',
-          fit: BoxFit.cover,
-        ),
+        // flexibleSpace: Image.asset(
+        //   'assets/images/yellow (3).jpg',
+        //   fit: BoxFit.cover,
+        // ),
         toolbarHeight: 80,
         title: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -146,81 +146,86 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      body: _isLoading
-          ? Center(
-              child: SizedBox(
-                width: 50.0,
-                height: 50.0,
-                child: CircularProgressIndicator(),
-              ),
-            )
-          : filteredReminders.isEmpty
-              ? Center(
-                  child: Text(
-                    'No upcoming reminders.',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.all(8.0),
-                  itemCount: filteredReminders.length > 5
-                      ? 5
-                      : filteredReminders.length,
-                  itemBuilder: (context, index) {
-                    final reminder = filteredReminders[index];
-                    final dateTimeText =
-                        reminder['date'] != null && reminder['time'] != null
-                            ? '${reminder['date']} at ${reminder['time']}'
-                            : '';
-
-                    return Card(
-                      elevation: 20,
-                      shadowColor: Colors.black,
-                      margin:
-                          EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20.0),
-                        side: BorderSide(color: Colors.grey, width: 2.0),
-                      ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              reminder['title'] ?? '',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 8.0),
-                            Text(
-                              reminder['description'] ?? '',
-                              style: TextStyle(fontSize: 16),
-                            ),
-                            SizedBox(height: 8.0),
-                            Text(
-                              'Scheduled time:',
-                              style: TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            SizedBox(height: 4.0),
-                            Text(
-                              dateTimeText,
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.orange,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
+      body: Container(
+        decoration: BoxDecoration(
+            image: DecorationImage(
+                image: AssetImage('assets/images/yellow(3).jpg'))),
+        child: _isLoading
+            ? Center(
+                child: SizedBox(
+                  width: 50.0,
+                  height: 50.0,
+                  child: CircularProgressIndicator(),
                 ),
+              )
+            : filteredReminders.isEmpty
+                ? Center(
+                    child: Text(
+                      'No upcoming reminders.',
+                      style: TextStyle(fontSize: 18, color: Colors.grey),
+                    ),
+                  )
+                : ListView.builder(
+                    padding: const EdgeInsets.all(8.0),
+                    itemCount: filteredReminders.length > 5
+                        ? 5
+                        : filteredReminders.length,
+                    itemBuilder: (context, index) {
+                      final reminder = filteredReminders[index];
+                      final dateTimeText =
+                          reminder['date'] != null && reminder['time'] != null
+                              ? '${reminder['date']} at ${reminder['time']}'
+                              : '';
+
+                      return Card(
+                        elevation: 20,
+                        shadowColor: Colors.black,
+                        margin: EdgeInsets.symmetric(
+                            vertical: 8.0, horizontal: 16.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20.0),
+                          side: BorderSide(color: Colors.grey, width: 2.0),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                reminder['title'] ?? '',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 8.0),
+                              Text(
+                                reminder['description'] ?? '',
+                                style: TextStyle(fontSize: 16),
+                              ),
+                              SizedBox(height: 8.0),
+                              Text(
+                                'Scheduled time:',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              SizedBox(height: 4.0),
+                              Text(
+                                dateTimeText,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.orange,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(

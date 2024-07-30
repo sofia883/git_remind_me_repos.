@@ -22,6 +22,11 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
   DateTime? _selectedDate;
   TimeOfDay? _selectedTime;
 
+  String? _titleError;
+  String? _descriptionError;
+  String? _dateError;
+  String? _timeError;
+
   @override
   void dispose() {
     _titleController.dispose();
@@ -47,6 +52,7 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
       setState(() {
         _selectedDate = pickedDate;
         _dateController.text = DateFormat('d MMMM yyyy').format(pickedDate);
+        _dateError = null; // Clear date error message when a date is selected
       });
     }
   }
@@ -60,19 +66,32 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
       setState(() {
         _selectedTime = pickedTime;
         _timeController.text = pickedTime.format(context);
+        _timeError = null; // Clear time error message when a time is selected
       });
+    }
+  }
+
+  void _validateAndSaveReminder() {
+    setState(() {
+      _titleError =
+          _titleController.text.isEmpty ? 'Please enter a title' : null;
+      _descriptionError = _descriptionController.text.isEmpty
+          ? 'Please enter a description'
+          : null;
+      _dateError = _dateController.text.isEmpty ? 'Please select a date' : null;
+      _timeError = _timeController.text.isEmpty ? 'Please select a time' : null;
+    });
+
+    if (_titleError == null &&
+        _descriptionError == null &&
+        _dateError == null &&
+        _timeError == null) {
+      _saveReminder();
     }
   }
 
   Future<void> _saveReminder() async {
     if (_formKey.currentState!.validate()) {
-      if (_dateController.text.isEmpty || _timeController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please select date and time')),
-        );
-        return;
-      }
-
       final selectedDate = _selectedDate;
       final selectedTime = _selectedTime;
 
@@ -133,26 +152,32 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
         padding: EdgeInsets.all(16.0),
         child: Form(
           key: _formKey,
+          autovalidateMode:
+              AutovalidateMode.onUserInteraction, // Enable real-time validation
           child: Column(
             children: [
               TextFormField(
                 controller: _titleController,
-                decoration: InputDecoration(labelText: 'Title'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a title';
-                  }
-                  return null;
+                decoration: InputDecoration(
+                  labelText: 'Title',
+                  errorText: _titleError,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _titleError = null; // Clear error when value changes
+                  });
                 },
               ),
               TextFormField(
                 controller: _descriptionController,
-                decoration: InputDecoration(labelText: 'Description'),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter a description';
-                  }
-                  return null;
+                decoration: InputDecoration(
+                  labelText: 'Description',
+                  errorText: _descriptionError,
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _descriptionError = null; // Clear error when value changes
+                  });
                 },
               ),
               GestureDetector(
@@ -163,6 +188,7 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
                     decoration: InputDecoration(
                       labelText: 'Date',
                       suffixIcon: Icon(Icons.calendar_today),
+                      errorText: _dateError,
                     ),
                   ),
                 ),
@@ -175,13 +201,14 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
                     decoration: InputDecoration(
                       labelText: 'Time',
                       suffixIcon: Icon(Icons.access_time),
+                      errorText: _timeError,
                     ),
                   ),
                 ),
               ),
               SizedBox(height: 20),
               ElevatedButton(
-                onPressed: _saveReminder,
+                onPressed: _validateAndSaveReminder,
                 child: Text('Save Reminder'),
               ),
             ],

@@ -48,7 +48,7 @@ class _WelcomePageState extends State<WelcomePage>
         fit: StackFit.expand,
         children: [
           Image.asset(
-            'assets/images/white.jpg',
+            'assets/images/black.jpg',
             fit: BoxFit.cover,
           ),
           Center(
