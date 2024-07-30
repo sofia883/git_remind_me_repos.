@@ -54,7 +54,7 @@ dependencies:
   marquee: ^2.2.3
   firebase_service: ^0.0.1+1
   provider: ^6.1.2
-  
+  flutter_datetime_picker: ^1.5.1  
   
 
 dev_dependencies:

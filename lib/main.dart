@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'added_reminders_page.dart';
 import 'home_page.dart';
+import 'added_reminders_page.dart';
 import 'setting_page.dart';
+import 'welcome_page.dart';
 
 void main() => runApp(MyApp());
 
@@ -9,12 +10,13 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       showSemanticsDebugger: false,
       title: 'Reminder App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: MainScreen(),
+      home: WelcomePage(), // Set WelcomePage as the initial route
     );
   }
 }
