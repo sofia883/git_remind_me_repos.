@@ -90,11 +90,33 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Home Page'),
+        flexibleSpace: Image.asset(
+          'assets/images/yellow.jpg',
+          fit: BoxFit.cover,
+        ),
+        toolbarHeight: 80,
+        title: Column(
+          mainAxisAlignment: MainAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              Icons.list, // File icon
+              color: Colors.white, // Icon color
+              size: 30.0, // Icon size
+            ),
+            SizedBox(height: 12.0), // Space between icon and title
+            Text(
+              'Remind Me',
+              style: TextStyle(color: Colors.black),
+            ),
+            SizedBox(
+              height: 12,
+            ),
+          ],
+        ),
         bottom: PreferredSize(
           preferredSize: Size.fromHeight(50.0),
           child: Padding(
@@ -103,7 +125,19 @@ class _HomePageState extends State<HomePage> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search reminders...',
-                border: InputBorder.none,
+                border: OutlineInputBorder(
+                  borderRadius:
+                      BorderRadius.circular(30.0), // Circular border radius
+                  borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30.0),
+                  borderSide: BorderSide(color: Colors.blue),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30.0),
+                  borderSide: BorderSide(color: Colors.grey.withOpacity(0.5)),
+                ),
                 prefixIcon: Icon(Icons.search),
                 filled: true,
                 fillColor: Colors.white,
