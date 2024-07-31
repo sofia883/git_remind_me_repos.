@@ -90,13 +90,10 @@ class _HomePageState extends State<HomePage> {
     super.dispose();
   }
 
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        // flexibleSpace: Image.asset(
-        //   'assets/images/yellow (3).jpg',
-        //   fit: BoxFit.cover,
-        // ),
         toolbarHeight: 80,
         title: Column(
           mainAxisAlignment: MainAxisAlignment.start,
@@ -149,7 +146,7 @@ class _HomePageState extends State<HomePage> {
       body: Container(
         decoration: BoxDecoration(
             image: DecorationImage(
-                image: AssetImage('assets/images/yellow(3).jpg'))),
+                image: AssetImage('assets/images/canva_design.html'))),
         child: _isLoading
             ? Center(
                 child: SizedBox(
@@ -197,11 +194,15 @@ class _HomePageState extends State<HomePage> {
                                   fontSize: 18,
                                   fontWeight: FontWeight.bold,
                                 ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               SizedBox(height: 8.0),
                               Text(
                                 reminder['description'] ?? '',
                                 style: TextStyle(fontSize: 16),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                               SizedBox(height: 8.0),
                               Text(
