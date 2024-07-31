@@ -269,11 +269,15 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             SizedBox(height: 8.0),
                             Text(
                               reminder['description'] ?? '',
                               style: TextStyle(fontSize: 16),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                             SizedBox(height: 8.0),
                             Text(
