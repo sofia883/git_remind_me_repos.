@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'dart:async'; // Add this import
 import 'create_reminder.dart';
+import 'expired_reminders.dart';
 
 class AddedRemindersPage extends StatefulWidget {
   @override
@@ -11,31 +13,97 @@ class AddedRemindersPage extends StatefulWidget {
 
 class _AddedRemindersPageState extends State<AddedRemindersPage> {
   List<Map<String, String>> reminders = [];
-  bool isLoading = true; // Flag to manage loading state
+  List<Map<String, String>> expiredReminders = [];
+  bool isLoading = true;
+
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     _initializePage();
+    // Set up a timer to check for expired reminders every minute
+    _timer = Timer.periodic(Duration(minutes: 1), (timer) {
+      _checkExpiredReminders();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel(); // Cancel the timer when the widget is disposed
+    super.dispose();
   }
 
   Future<void> _initializePage() async {
-    await Future.delayed(Duration(seconds: 1)); // Simulate a delay
+    await Future.delayed(Duration(seconds: 1));
     await _loadReminders();
     setState(() {
-      isLoading = false; // Update loading state
+      isLoading = false;
     });
   }
 
   Future<void> _loadReminders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> remindersData = prefs.getStringList('reminders') ?? [];
+    DateTime now = DateTime.now();
+
+    List<Map<String, String>> newReminders = [];
+    List<Map<String, String>> newExpiredReminders = [];
+
+    for (var reminder in remindersData) {
+      Map<String, String> reminderMap =
+          Map<String, String>.from(jsonDecode(reminder));
+      DateTime reminderDateTime =
+          _parseDateTime(reminderMap['date']!, reminderMap['time']!);
+
+      if (reminderDateTime.isAfter(now)) {
+        newReminders.add(reminderMap);
+      } else {
+        newExpiredReminders.add(reminderMap);
+      }
+    }
+
+    print('Current Time: $now');
+    print('New Reminders: $newReminders');
+    print('Expired Reminders: $newExpiredReminders');
 
     setState(() {
-      reminders = remindersData
-          .map((reminder) => Map<String, String>.from(jsonDecode(reminder)))
-          .toList();
+      reminders = newReminders;
     });
+
+    // Save expired reminders separately
+    List<String> encodedExpiredReminders =
+        newExpiredReminders.map((reminder) => jsonEncode(reminder)).toList();
+    await prefs.setStringList('expiredReminders', encodedExpiredReminders);
+
+    // Optionally, clear expired reminders from the main list in SharedPreferences
+    List<String> encodedReminders =
+        newReminders.map((reminder) => jsonEncode(reminder)).toList();
+    await prefs.setStringList('reminders', encodedReminders);
+  }
+
+  void _checkExpiredReminders() {
+    DateTime now = DateTime.now();
+    List<Map<String, String>> newExpiredReminders = [];
+
+    reminders = reminders.where((reminder) {
+      DateTime reminderDateTime =
+          _parseDateTime(reminder['date']!, reminder['time']!);
+      if (reminderDateTime.isBefore(now)) {
+        newExpiredReminders.add(reminder);
+        return false;
+      }
+      return true;
+    }).toList();
+
+    if (newExpiredReminders.isNotEmpty) {
+      setState(() {
+        expiredReminders.addAll(newExpiredReminders);
+        // Ensure the UI updates
+      });
+      _saveReminders();
+      _saveExpiredReminders();
+    }
   }
 
   Future<void> _saveReminders() async {
@@ -43,6 +111,13 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
     List<String> remindersData =
         reminders.map((reminder) => jsonEncode(reminder)).toList();
     await prefs.setStringList('reminders', remindersData);
+  }
+
+  Future<void> _saveExpiredReminders() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    List<String> expiredRemindersData =
+        expiredReminders.map((reminder) => jsonEncode(reminder)).toList();
+    await prefs.setStringList('expiredReminders', expiredRemindersData);
   }
 
   void _deleteReminder(int index) async {
@@ -155,14 +230,17 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
   DateTime _parseDateTime(String date, String time) {
     try {
       DateTime parsedDate = DateFormat('d MMMM yyyy').parse(date);
-      List<String> timeParts = time.split(':');
-      return DateTime(
-        parsedDate.year,
-        parsedDate.month,
-        parsedDate.day,
-        int.parse(timeParts[0]),
-        int.parse(timeParts[1]),
+      TimeOfDay parsedTime = TimeOfDay(
+        hour: int.parse(time.split(':')[0]),
+        minute: int.parse(time.split(':')[1].split(' ')[0]),
       );
+      int hour = parsedTime.period == DayPeriod.pm && parsedTime.hour != 12
+          ? parsedTime.hour + 12
+          : parsedTime.hour == 12 && parsedTime.period == DayPeriod.am
+              ? 0
+              : parsedTime.hour;
+      return DateTime(parsedDate.year, parsedDate.month, parsedDate.day, hour,
+          parsedTime.minute);
     } catch (e) {
       return DateTime.now();
     }
@@ -218,12 +296,18 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
     }
   }
 
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Added Reminders'),
         actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            onPressed: () {
+              _checkExpiredReminders();
+              setState(() {}); // Force rebuild
+            },
+          ),
           IconButton(
             icon: Icon(Icons.add),
             onPressed: () => _navigateToAddReminder(context),
@@ -231,11 +315,11 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
         ],
       ),
       body: isLoading
-          ? Center(child: CircularProgressIndicator()) // Loading indicator
+          ? Center(child: CircularProgressIndicator())
           : reminders.isEmpty
               ? Center(
                   child: Text(
-                    'No reminders added yet.',
+                    'No active reminders.',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 )
