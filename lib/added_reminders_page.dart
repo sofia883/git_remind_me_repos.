@@ -64,6 +64,8 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
     }
 
     print('Current Time: $now');
+    print(
+        'Parsed Reminders: ${remindersData.map((r) => _parseDateTime(jsonDecode(r)['date'], jsonDecode(r)['time'])).toList()}');
     print('New Reminders: $newReminders');
     print('Expired Reminders: $newExpiredReminders');
 
@@ -230,18 +232,15 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
   DateTime _parseDateTime(String date, String time) {
     try {
       DateTime parsedDate = DateFormat('d MMMM yyyy').parse(date);
-      TimeOfDay parsedTime = TimeOfDay(
-        hour: int.parse(time.split(':')[0]),
-        minute: int.parse(time.split(':')[1].split(' ')[0]),
-      );
-      int hour = parsedTime.period == DayPeriod.pm && parsedTime.hour != 12
-          ? parsedTime.hour + 12
-          : parsedTime.hour == 12 && parsedTime.period == DayPeriod.am
-              ? 0
-              : parsedTime.hour;
-      return DateTime(parsedDate.year, parsedDate.month, parsedDate.day, hour,
-          parsedTime.minute);
+      List<String> timeParts = time.split(' ');
+      int hour = int.parse(timeParts[0].split(':')[0]);
+      int minute = int.parse(timeParts[0].split(':')[1]);
+      if (timeParts[1].toLowerCase() == 'pm' && hour != 12) hour += 12;
+      if (timeParts[1].toLowerCase() == 'am' && hour == 12) hour = 0;
+      return DateTime(
+          parsedDate.year, parsedDate.month, parsedDate.day, hour, minute);
     } catch (e) {
+      print('Error parsing date and time: $date $time - $e');
       return DateTime.now();
     }
   }
