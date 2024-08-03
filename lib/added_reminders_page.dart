@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import 'dart:async'; // Import the async package
 import 'package:intl/intl.dart';
-import 'dart:async'; // Add this import
 import 'create_reminder.dart';
-import 'expired_reminders.dart';
 
 class AddedRemindersPage extends StatefulWidget {
   @override
@@ -13,24 +12,19 @@ class AddedRemindersPage extends StatefulWidget {
 
 class _AddedRemindersPageState extends State<AddedRemindersPage> {
   List<Map<String, String>> reminders = [];
-  List<Map<String, String>> expiredReminders = [];
   bool isLoading = true;
-
-  Timer? _timer;
+  Timer? timer; // Timer to check reminders
 
   @override
   void initState() {
     super.initState();
     _initializePage();
-    // Set up a timer to check for expired reminders every minute
-    _timer = Timer.periodic(Duration(minutes: 1), (timer) {
-      _checkExpiredReminders();
-    });
+    _startTimer();
   }
 
   @override
   void dispose() {
-    _timer?.cancel(); // Cancel the timer when the widget is disposed
+    timer?.cancel();
     super.dispose();
   }
 
@@ -45,67 +39,12 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
   Future<void> _loadReminders() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> remindersData = prefs.getStringList('reminders') ?? [];
-    DateTime now = DateTime.now();
-
-    List<Map<String, String>> newReminders = [];
-    List<Map<String, String>> newExpiredReminders = [];
-
-    for (var reminder in remindersData) {
-      Map<String, String> reminderMap =
-          Map<String, String>.from(jsonDecode(reminder));
-      DateTime reminderDateTime =
-          _parseDateTime(reminderMap['date']!, reminderMap['time']!);
-
-      if (reminderDateTime.isAfter(now)) {
-        newReminders.add(reminderMap);
-      } else {
-        newExpiredReminders.add(reminderMap);
-      }
-    }
-
-    print('Current Time: $now');
-    print(
-        'Parsed Reminders: ${remindersData.map((r) => _parseDateTime(jsonDecode(r)['date'], jsonDecode(r)['time'])).toList()}');
-    print('New Reminders: $newReminders');
-    print('Expired Reminders: $newExpiredReminders');
 
     setState(() {
-      reminders = newReminders;
+      reminders = remindersData
+          .map((reminder) => Map<String, String>.from(jsonDecode(reminder)))
+          .toList();
     });
-
-    // Save expired reminders separately
-    List<String> encodedExpiredReminders =
-        newExpiredReminders.map((reminder) => jsonEncode(reminder)).toList();
-    await prefs.setStringList('expiredReminders', encodedExpiredReminders);
-
-    // Optionally, clear expired reminders from the main list in SharedPreferences
-    List<String> encodedReminders =
-        newReminders.map((reminder) => jsonEncode(reminder)).toList();
-    await prefs.setStringList('reminders', encodedReminders);
-  }
-
-  void _checkExpiredReminders() {
-    DateTime now = DateTime.now();
-    List<Map<String, String>> newExpiredReminders = [];
-
-    reminders = reminders.where((reminder) {
-      DateTime reminderDateTime =
-          _parseDateTime(reminder['date']!, reminder['time']!);
-      if (reminderDateTime.isBefore(now)) {
-        newExpiredReminders.add(reminder);
-        return false;
-      }
-      return true;
-    }).toList();
-
-    if (newExpiredReminders.isNotEmpty) {
-      setState(() {
-        expiredReminders.addAll(newExpiredReminders);
-        // Ensure the UI updates
-      });
-      _saveReminders();
-      _saveExpiredReminders();
-    }
   }
 
   Future<void> _saveReminders() async {
@@ -113,13 +52,6 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
     List<String> remindersData =
         reminders.map((reminder) => jsonEncode(reminder)).toList();
     await prefs.setStringList('reminders', remindersData);
-  }
-
-  Future<void> _saveExpiredReminders() async {
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    List<String> expiredRemindersData =
-        expiredReminders.map((reminder) => jsonEncode(reminder)).toList();
-    await prefs.setStringList('expiredReminders', expiredRemindersData);
   }
 
   void _deleteReminder(int index) async {
@@ -232,15 +164,26 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
   DateTime _parseDateTime(String date, String time) {
     try {
       DateTime parsedDate = DateFormat('d MMMM yyyy').parse(date);
-      List<String> timeParts = time.split(' ');
-      int hour = int.parse(timeParts[0].split(':')[0]);
-      int minute = int.parse(timeParts[0].split(':')[1]);
-      if (timeParts[1].toLowerCase() == 'pm' && hour != 12) hour += 12;
-      if (timeParts[1].toLowerCase() == 'am' && hour == 12) hour = 0;
-      return DateTime(
-          parsedDate.year, parsedDate.month, parsedDate.day, hour, minute);
+      List<String> timeParts = time.split(':');
+      int hour = int.parse(timeParts[0]);
+      int minute = int.parse(timeParts[1]);
+
+      // Check for AM/PM if necessary
+      if (time.toLowerCase().contains('pm') && hour != 12) hour += 12;
+      if (time.toLowerCase().contains('am') && hour == 12) hour = 0;
+
+      DateTime parsedDateTime = DateTime(
+        parsedDate.year,
+        parsedDate.month,
+        parsedDate.day,
+        hour,
+        minute,
+      );
+
+      print('Parsed date time: $parsedDateTime'); // Debug print
+      return parsedDateTime;
     } catch (e) {
-      print('Error parsing date and time: $date $time - $e');
+      print('Error parsing date time: $e'); // Debug print
       return DateTime.now();
     }
   }
@@ -290,23 +233,57 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
     );
 
     if (result == true) {
-      // Refresh reminders
-      await _loadReminders();
+      await _loadReminders(); // Refresh reminders
     }
   }
 
+  void _checkAndUpdateReminders() {
+    final currentTime = DateTime.now();
+    print('Current time: $currentTime'); // Debug print
+
+    setState(() {
+      reminders = reminders.map((reminder) {
+        final scheduledDateTime = _parseDateTime(
+          reminder['date'] ?? '',
+          reminder['time'] ?? '',
+        );
+
+        print('Scheduled time: $scheduledDateTime'); // Debug print
+
+        if (scheduledDateTime.year == currentTime.year &&
+            scheduledDateTime.month == currentTime.month &&
+            scheduledDateTime.day == currentTime.day &&
+            scheduledDateTime.hour == currentTime.hour &&
+            scheduledDateTime.minute == currentTime.minute) {
+          // Mark reminder as red
+          print(
+              'Time matched for reminder: ${reminder['title']}'); // Debug print
+          return {...reminder, 'isRed': 'true'};
+        }
+
+        return {...reminder, 'isRed': 'false'};
+      }).toList();
+    });
+  }
+
+  void _startTimer() {
+    timer = Timer.periodic(Duration(minutes: 1), (Timer t) {
+      print('Timer tick: ${DateTime.now()}'); // Debug print
+      _checkAndUpdateReminders();
+    });
+  }
+
+  void _moveToExpiredRemindersPage(List<Map<String, String>> expiredReminders) {
+    // Implement the navigation to the "Expired Reminders" page
+    // You can pass the expired reminders to the new page
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Added Reminders'),
         actions: [
-          IconButton(
-            icon: Icon(Icons.refresh),
-            onPressed: () {
-              _checkExpiredReminders();
-              setState(() {}); // Force rebuild
-            },
-          ),
           IconButton(
             icon: Icon(Icons.add),
             onPressed: () => _navigateToAddReminder(context),
@@ -318,23 +295,39 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
           : reminders.isEmpty
               ? Center(
                   child: Text(
-                    'No active reminders.',
+                    'No reminders added yet.',
                     style: TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 )
               : GridView.builder(
                   padding: const EdgeInsets.all(8.0),
                   gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2, // Two items per row
+                    crossAxisCount: 2,
                     crossAxisSpacing: 10.0,
                     mainAxisSpacing: 10.0,
-                    childAspectRatio: 0.75, // Adjust to fit your design
+                    childAspectRatio: 0.75,
                   ),
                   itemCount: reminders.length,
                   itemBuilder: (context, index) {
                     final reminder = reminders[index];
+                    final scheduledDateTime = _parseDateTime(
+                      reminder['date'] ?? '',
+                      reminder['time'] ?? '',
+                    );
+                    final currentTime = DateTime.now();
+                    final isTimeMatching =
+                        scheduledDateTime.year == currentTime.year &&
+                            scheduledDateTime.month == currentTime.month &&
+                            scheduledDateTime.day == currentTime.day &&
+                            scheduledDateTime.hour == currentTime.hour &&
+                            scheduledDateTime.minute == currentTime.minute;
 
                     return Card(
+                      color: reminder['isRed'] == 'true'
+                          ? Colors.red
+                          : Colors.white,
+                      // Other card properties...
+
                       elevation: 20,
                       shadowColor: Colors.black,
                       shape: RoundedRectangleBorder(
