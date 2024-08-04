@@ -72,6 +72,18 @@ class _HomePageState extends State<HomePage> {
     _processExpiredReminders();
   }
 
+  Future<void> _showLoadingIndicator() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    await Future.delayed(Duration(seconds: 1));
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
   void _processExpiredReminders() async {
     DateTime now = DateTime.now().subtract(Duration(
         seconds: DateTime.now().second,
@@ -379,8 +391,9 @@ class _HomePageState extends State<HomePage> {
             ),
           ).then((result) {
             if (result == true) {
-              _loadReminders(); // Reload reminders if a new reminder was added
+              _showLoadingIndicator();
             }
+            // Reload reminders if a new reminder was added
           });
         },
         child: Icon(Icons.add),
