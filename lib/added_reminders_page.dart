@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
 import 'dart:async';
+import 'create_reminder.dart';
 
 class AddedRemindersPage extends StatefulWidget {
   @override
@@ -13,6 +14,7 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
   List<Map<String, String>> reminders = [];
   List<Map<String, String>> expiredReminders = [];
   Timer? _timer;
+  bool _isLoading = true; // Loading state
 
   @override
   void initState() {
@@ -41,6 +43,8 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
   }
 
   Future<void> _loadReminders() async {
+    await Future.delayed(Duration(seconds: 1)); // Simulate a delay for loading
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     List<String> remindersData = prefs.getStringList('reminders') ?? [];
     List<String> expiredRemindersData =
@@ -56,6 +60,7 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
     setState(() {
       reminders = loadedReminders;
       expiredReminders = loadedExpiredReminders;
+      _isLoading = false; // Loading finished
     });
 
     print('Reminders loaded: $reminders');
@@ -309,6 +314,17 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text('Added Reminders'),
+        ),
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text('Added Reminders'),
@@ -325,23 +341,43 @@ class _AddedRemindersPageState extends State<AddedRemindersPage> {
           ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: reminders.length,
-        itemBuilder: (context, index) {
-          final reminder = reminders[index];
-          return Card(
-            child: ListTile(
-              title: Text(reminder['title'] ?? 'No Title'),
-              subtitle: Text(
-                  '${reminder['description']}\n${reminder['date']} ${reminder['time']}'),
-              trailing: IconButton(
-                icon: Icon(Icons.delete),
-                onPressed: () => _confirmDeleteReminder(index),
+      body: reminders.isEmpty
+          ? Center(
+              child: Text(
+                'No reminders added',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
               ),
-              onTap: () => _editReminder(index),
+            )
+          : ListView.builder(
+              itemCount: reminders.length,
+              itemBuilder: (context, index) {
+                final reminder = reminders[index];
+                return Card(
+                  child: ListTile(
+                    title: Text(reminder['title'] ?? 'No Title'),
+                    subtitle: Text(
+                        '${reminder['description']}\n${reminder['date']} ${reminder['time']}'),
+                    trailing: IconButton(
+                      icon: Icon(Icons.delete),
+                      onPressed: () => _confirmDeleteReminder(index),
+                    ),
+                    onTap: () => _editReminder(index),
+                  ),
+                );
+              },
             ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => CreateReminderPage(
+                      onReminderSaved: _loadReminders,
+                    )),
           );
         },
+        child: Icon(Icons.add),
+        tooltip: 'Create Reminder',
       ),
     );
   }
