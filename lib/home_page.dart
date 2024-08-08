@@ -3,6 +3,8 @@ import 'dart:async';
 import 'create_reminder.dart';
 import 'reminder_service.dart';
 import 'expired_reminders.dart';
+// import 'setting_page.dart';
+import 'profile_page.dart'; // Import your profile page
 
 class HomePage extends StatefulWidget {
   @override
@@ -56,10 +58,13 @@ class _HomePageState extends State<HomePage> {
     setState(() {
       reminders = loadedReminders[0];
       expiredReminders = loadedReminders[1];
-      filteredReminders = List.from(reminders);
       mostUpcomingReminder = ReminderUtils.getMostUpcomingReminder(reminders);
       _isLoading = false;
     });
+
+    print('Reminders loaded: $reminders');
+    print('Expired reminders loaded: $expiredReminders');
+    print('Most upcoming reminder: $mostUpcomingReminder');
 
     _processExpiredReminders();
   }
@@ -103,7 +108,6 @@ class _HomePageState extends State<HomePage> {
     if (result) {
       setState(() {
         reminders.removeAt(index);
-        filteredReminders.removeAt(index); // Keep filtered list in sync
         _saveReminders();
       });
     }
@@ -123,6 +127,17 @@ class _HomePageState extends State<HomePage> {
         });
       },
     );
+  }
+
+  void _logout() async {
+    // Clear expired reminders when logging out
+    await ReminderUtils.clearExpiredReminders();
+
+    // Clear any other necessary data
+    await ReminderUtils.clearOtherData();
+
+    // Navigate to login or welcome page
+    Navigator.pushReplacementNamed(context, '/login');
   }
 
   @override
@@ -186,12 +201,6 @@ class _HomePageState extends State<HomePage> {
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            IconButton(
-              icon: Icon(Icons.list, size: 30.0, color: Colors.white),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
-            ),
             SizedBox(height: 8.0), // Space between icon and title
             Text(
               'Remind Me',
@@ -232,10 +241,82 @@ class _HomePageState extends State<HomePage> {
           ),
         ),
       ),
-      body: Column(
-        children: [
-          if (mostUpcomingReminder != null)
-            Card(
+      drawer: Drawer(
+        child: ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            DrawerHeader(
+              decoration: BoxDecoration(
+                color: Colors.blue,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'User Name', // Replace with dynamic user name if available
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8.0),
+                  Text(
+                    'user@example.com', // Replace with dynamic email if available
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            ListTile(
+              title: Text('Home'),
+              leading: Icon(Icons.home),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/home');
+              },
+            ),
+            ListTile(
+              title: Text('View Reminders'),
+              leading: Icon(Icons.list),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/view-reminders');
+              },
+            ),
+            ListTile(
+              title: Text('Profile'),
+              leading: Icon(Icons.person),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/profile');
+              },
+            ),
+            ListTile(
+              title: Text('Settings'),
+              leading: Icon(Icons.settings),
+              onTap: () {
+                Navigator.pushReplacementNamed(context, '/settings');
+              },
+            ),
+            ListTile(
+              title: Text('Logout'),
+              leading: Icon(Icons.logout),
+              onTap: () {
+                _logout();
+              },
+            ),
+          ],
+        ),
+      ),
+      body: reminders.isEmpty
+          ? Center(
+              child: Text(
+                'No reminders added',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            )
+          : Card(
               elevation: 4,
               margin: EdgeInsets.all(8.0),
               child: InkWell(
@@ -278,8 +359,6 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
