@@ -55,10 +55,6 @@ class _HomePageState extends State<HomePage> {
       _isLoading = false;
     });
 
-    print('Reminders loaded: $reminders');
-    print('Expired reminders loaded: $expiredReminders');
-    print('Most upcoming reminder: $mostUpcomingReminder');
-
     _processExpiredReminders();
   }
 
@@ -101,6 +97,8 @@ class _HomePageState extends State<HomePage> {
       (updatedReminder) {
         setState(() {
           reminders[index] = updatedReminder;
+          mostUpcomingReminder =
+              ReminderUtils.getMostUpcomingReminder(reminders);
           _saveReminders();
         });
       },
@@ -142,6 +140,8 @@ class _HomePageState extends State<HomePage> {
                         // Move the reminder from expired to active
                         reminders.add(expiredReminders[index]);
                         expiredReminders.removeAt(index);
+                        mostUpcomingReminder =
+                            ReminderUtils.getMostUpcomingReminder(reminders);
                         _saveReminders();
                       });
                       // Optionally, you can show a snackbar or toast to confirm the restoration
@@ -164,53 +164,10 @@ class _HomePageState extends State<HomePage> {
                 style: TextStyle(fontSize: 18, color: Colors.grey),
               ),
             )
-          : Center(
-              child: Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: InkWell(
-                  onTap: () =>
-                      _editReminder(reminders.indexOf(mostUpcomingReminder!)),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Most Upcoming Reminder',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blue,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          mostUpcomingReminder!['title'] ?? 'No Title',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          mostUpcomingReminder!['description'] ??
-                              'No Description',
-                          style: TextStyle(fontSize: 16),
-                        ),
-                        SizedBox(height: 8),
-                        Text(
-                          '${mostUpcomingReminder!['date']} ${mostUpcomingReminder!['time']}',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+          : MostUpcomingReminderCard(
+              reminder: mostUpcomingReminder!,
+              onEdit: () =>
+                  _editReminder(reminders.indexOf(mostUpcomingReminder!)),
             ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
@@ -218,17 +175,76 @@ class _HomePageState extends State<HomePage> {
             context,
             MaterialPageRoute(
               builder: (context) => CreateReminderPage(
-                onReminderSaved: _loadReminders,
+                onReminderSaved: () {
+                  _loadReminders();
+                  _showLoadingIndicator();
+                },
               ),
             ),
-          ).then((result) {
-            if (result == true) {
-              _showLoadingIndicator();
-            }
-          });
+          );
         },
         child: Icon(Icons.add),
         tooltip: 'Create Reminder',
+      ),
+    );
+  }
+}
+
+class MostUpcomingReminderCard extends StatelessWidget {
+  final Map<String, String> reminder;
+  final VoidCallback onEdit;
+
+  MostUpcomingReminderCard({
+    required this.reminder,
+    required this.onEdit,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Card(
+        elevation: 4,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: InkWell(
+          onTap: onEdit,
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Most Upcoming Reminder',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  reminder['title'] ?? 'No Title',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  reminder['description'] ?? 'No Description',
+                  style: TextStyle(fontSize: 16),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '${reminder['date']} ${reminder['time']}',
+                  style: TextStyle(fontSize: 14, color: Colors.grey),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
