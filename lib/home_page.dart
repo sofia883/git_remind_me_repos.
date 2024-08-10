@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'dart:async';
 import 'create_reminder.dart';
 import 'reminder_service.dart';
 import 'expired_reminders.dart';
 // import 'setting_page.dart';
+import 'notifications_service.dart';
 import 'profile_page.dart'; // Import your profile page
-
 class HomePage extends StatefulWidget {
   @override
   _HomePageState createState() => _HomePageState();
@@ -35,6 +36,14 @@ class _HomePageState extends State<HomePage> {
     _searchController.dispose();
     super.dispose();
   }
+  void _scheduleNotification(Map<String, String> reminder) {
+  final int id = reminders.indexOf(reminder);
+  final String title = reminder['title'] ?? 'Reminder';
+  final String body = reminder['description'] ?? '';
+  final DateTime scheduledDate = DateTime.parse('${reminder['date']} ${reminder['time']}');
+
+  NotificationService().showNotification(id, title, body, scheduledDate);
+}
 
   void _scheduleNextExpirationCheck() {
     DateTime now = DateTime.now();
@@ -112,22 +121,24 @@ class _HomePageState extends State<HomePage> {
       });
     }
   }
-
-  Future<void> _editReminder(int index) async {
-    await ReminderUtils.editReminder(
-      context,
-      reminders[index],
-      (updatedReminder) {
-        setState(() {
-          reminders[index] = updatedReminder;
-          filteredReminders = List.from(reminders); // Update filtered list
-          mostUpcomingReminder =
-              ReminderUtils.getMostUpcomingReminder(reminders);
-          _saveReminders();
-        });
-      },
-    );
-  }
+Future<void> _editReminder(int index) async {
+  await ReminderUtils.editReminder(
+    context,
+    reminders[index],
+    (updatedReminder) {
+      setState(() {
+        reminders[index] = updatedReminder;
+        filteredReminders = List.from(reminders);
+        mostUpcomingReminder = ReminderUtils.getMostUpcomingReminder(reminders);
+        _saveReminders();
+        
+        // Cancel the old notification and schedule a new one
+        NotificationService().cancelNotification(index);
+        _scheduleNotification(updatedReminder);
+      });
+    },
+  );
+}
 
   void _logout() async {
     // Clear expired reminders when logging out
@@ -359,23 +370,23 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => CreateReminderPage(
-                onReminderSaved: () {
-                  _loadReminders();
-                  _showLoadingIndicator();
-                },
-              ),
-            ),
-          );
-        },
-        child: Icon(Icons.add),
-        tooltip: 'Create Reminder',
+   floatingActionButton: FloatingActionButton(
+  onPressed: () {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => CreateReminderPage(
+          onReminderSaved: () {
+            _loadReminders();
+            _showLoadingIndicator();
+          },
+        ),
       ),
+    );
+  },
+  child: Icon(Icons.add),
+  tooltip: 'Create Reminder',
+),
     );
   }
 }
