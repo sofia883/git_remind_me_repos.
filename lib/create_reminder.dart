@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import 'package:intl/intl.dart';
+import 'notifications_service.dart';
 
 class CreateReminderPage extends StatefulWidget {
-  final VoidCallback onReminderSaved; // Callback when a reminder is saved
+  final VoidCallback onReminderSaved;
 
   CreateReminderPage({required this.onReminderSaved});
 
@@ -40,6 +41,31 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
     return dateTime.isBefore(DateTime.now());
   }
 
+  void _scheduleNotification(Map<String, String> reminder) {
+    final String title = reminder['title'] ?? 'Reminder';
+    final String body = reminder['description'] ?? '';
+
+    // Parse the date
+    final DateFormat dateFormat = DateFormat('d MMMM yyyy');
+    final DateTime date = dateFormat.parse(reminder['date'] ?? '');
+
+    // Combine date and time
+    final DateTime scheduledDate = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      _selectedTime!.hour,
+      _selectedTime!.minute,
+    );
+
+    // Generate a unique ID for the notification
+    final int id = DateTime.now().millisecondsSinceEpoch.remainder(100000);
+
+    NotificationService().showNotification(id, title, body, scheduledDate);
+
+    print('Notification scheduled for: $scheduledDate with id: $id');
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime now = DateTime.now();
     final DateTime? pickedDate = await showDatePicker(
@@ -54,6 +80,7 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
         _dateController.text = DateFormat('d MMMM yyyy').format(pickedDate);
         _dateError = null; // Clear date error message when a date is selected
       });
+      print('Selected Date: $_selectedDate');
     }
   }
 
@@ -68,6 +95,7 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
         _timeController.text = pickedTime.format(context);
         _timeError = null; // Clear time error message when a time is selected
       });
+      print('Selected Time: $_selectedTime');
     }
   }
 
@@ -117,30 +145,37 @@ class _CreateReminderPageState extends State<CreateReminderPage> {
         return;
       }
 
-      // Retrieve existing reminders from shared preferences
-      SharedPreferences prefs = await SharedPreferences.getInstance();
-      List<String> reminders = prefs.getStringList('reminders') ?? [];
+      final DateFormat dateFormat = DateFormat('d MMMM yyyy');
+      final DateFormat timeFormat = DateFormat('h:mm a');
 
-      // Create a new reminder map
       Map<String, String> newReminder = {
         'title': _titleController.text,
         'description': _descriptionController.text,
-        'date': _dateController.text,
-        'time': _timeController.text,
+        'date': dateFormat.format(selectedDate),
+        'time': timeFormat
+            .format(DateTime(0, 0, 0, selectedTime.hour, selectedTime.minute)),
       };
 
-      // Add the new reminder to the list
-      reminders.add(jsonEncode(newReminder));
+      print('Saving reminder: $newReminder');
 
-      // Save the updated list back to shared preferences
+      // Schedule the notification
+      _scheduleNotification(newReminder);
+
+      // Save the reminder to SharedPreferences
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      List<String> reminders = prefs.getStringList('reminders') ?? [];
+      reminders.add(jsonEncode(newReminder));
       await prefs.setStringList('reminders', reminders);
+
+      print('Reminders saved: $reminders');
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Reminder saved successfully!')),
       );
 
-      widget.onReminderSaved(); // Call the callback to notify the previous page
-      Navigator.pop(context); // Navigate back to the previous page
+      // Call the callback to notify the HomePage
+      widget.onReminderSaved();
+      Navigator.pop(context, true);
     }
   }
 
